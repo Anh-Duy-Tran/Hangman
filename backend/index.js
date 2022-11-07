@@ -6,20 +6,41 @@ const gifService = require('./service/giphy');
 
 const app = express()
 
-const revealGuess = (WORD, SECRET, Guess) => {
-  for (let i = 0; i < WORD.length; i++) {
-    if (WORD[i] === Guess.toUpperCase()) {
-      SECRET[i] = WORD[i]
-    }
-  }
-  console.log(SECRET);
+function idGenerator() {
+  var S4 = function() {
+     return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
+  };
+  return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
 }
 
-let WORD = '';
-let SECRET = [];
-let ATTEMPTS = [];
-let CLUES = [];
+const revealGuess = (session, Guess) => {
+  let rightGuess = false;
 
+  for (let i = 0; i < session.word.length; i++) {
+    if (session.word[i] === Guess.toUpperCase()) {
+      rightGuess = true;
+      session.secret[i] = session.word[i]
+    }
+  }
+  
+  if (!rightGuess) {
+    session.failAttempt = Number(session.failAttempt) + 1;
+  }
+
+  if (Number(session.failAttempt) === 6) {
+    for (let i = 0; i < session.word.length; i++) {
+      if (session.secret[i] === '_') {
+        session.secret[i] = session.word[i].toLowerCase()
+      }
+    }
+  }
+}
+
+let Sessions = {}
+
+
+
+app.use(cors())
 app.use(express.json())
 
 const requestLogger = (request, response, next) => {
@@ -32,21 +53,52 @@ const requestLogger = (request, response, next) => {
 
 app.use(requestLogger)
 
-app.use(cors())
+const getSession = (id) => {
+  if (!(id in Sessions)) {
+    return null;
+  }
+  return Sessions[id];
+}
+
 
 // app.use(express.static('build'))
 
 // TESTING
-app.get('/api/word', (req, res) => {
-  res.json(WORD).end();
+app.post('/api/word', (req, res) => {
+  const id = req.body.id
+  const session = getSession(id)
+
+  if (session === null) {
+    res.status(400).json({error : "No exist session with id"}).end()
+    return;
+  }
+
+  res.json(session.word).end();
 })
 
-app.get('/api/attempt', (req, res) => {
-  res.json(ATTEMPTS).end();
+app.post('/api/attempt', (req, res) => {
+  const id = req.body.id
+  const session = getSession(id)
+
+  if (session === null) {
+    res.status(400).json({error : "No exist session with id"}).end()
+    return;
+  }
+
+  res.json(session.attempt).end();
 })
 
-app.get('/api/clue/:id', (req, res) => {
-  if (CLUES.length === 0) {
+app.post('/api/clue/:id', (req, res) => {
+  const idSession = req.body.id
+  const session = getSession(idSession)
+
+  if (session === null) {
+    res.status(400).json({error : "No exist session with id"}).end()
+    return;
+  }
+
+  console.log(session);
+  if (session.clues.length === 0) {
     res.status(400).json({error : "no clue yet."}).end();
     return;
   }
@@ -57,8 +109,12 @@ app.get('/api/clue/:id', (req, res) => {
     return;  
   }
 
-  res.status(200).json(CLUES[req.params.id]).end()
+  res.status(200).json(session.clues[req.params.id]).end()
 })
+
+app.get('/api/sessions', (req, res) => {
+  res.json(Sessions);
+});
 
 
 // init a new game, first fetch a new word from the api then
@@ -67,6 +123,13 @@ app.post('/api/init', (req, res) => {
   wordService
     .getWord()
     .then(word => {
+      const sessionID = idGenerator();
+
+      let WORD = '';
+      let SECRET = [];
+      let ATTEMPTS = [];
+      let CLUES = [];
+
       WORD = word.toUpperCase();
     
       SECRET.splice(0, SECRET.length);
@@ -74,12 +137,20 @@ app.post('/api/init', (req, res) => {
         SECRET.push('_');
       }
       ATTEMPTS = [];
-      gifService.getClues(word).then(clues => {
-        CLUES = clues;
+      gifService.getClues(word).then(CLUES => {
+        const session = {
+          id : sessionID,
+          word : WORD,
+          secret : SECRET,
+          attempt : ATTEMPTS,
+          clues : CLUES,
+          failAttempt : 0
+        }
+  
+        Sessions[sessionID] = session
+  
+        return res.status(200).json({id : sessionID, data : SECRET}).end();
       });
-      console.log(WORD);
-
-      return res.status(200).json(SECRET).end();
     })
     .catch(err => {
       res.status(500).json(err).end();
@@ -87,17 +158,36 @@ app.post('/api/init', (req, res) => {
 })
 
 app.put('/api/attempt', (req, res) => {
-  if (WORD.length === 0) {
+  const idSession = req.body.id
+
+  const session = getSession(idSession)
+
+  if (session === null) {
+    res.status(400).json({error : "No exist session with id"}).end()
+    return;
+  }
+
+  if (session.word.length === 0) {
     res.status(500).json({error : "Word not initiated"})
+    return;
+  }
+
+  if (Number(session.failAttempt) >= 6) {
+    res.status(400).json({error : "Gameover"}).end()
     return;
   }
 
   let attempt = req.body.attempt
 
-  if (!ATTEMPTS.some(c => c === attempt)) {
-    ATTEMPTS.push(attempt)
-    revealGuess(WORD, SECRET, attempt)
-    res.json(SECRET)
+  if (!session.attempt.some(c => c === attempt)) {
+    session.attempt.push(attempt)
+    revealGuess(session, attempt)
+    res.json({
+      data : session.secret, 
+      gameOver : Number(session.failAttempt) >= 6,
+      win : JSON.stringify(session.word)==JSON.stringify(session.secret),
+      failAttempt : session.failAttempt
+    })
   } else {
     res.status(400).json({error : "Already guessed"})
   }
