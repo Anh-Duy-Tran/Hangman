@@ -61,7 +61,7 @@ const getSession = (id) => {
 }
 
 
-// app.use(express.static('build'))
+app.use(express.static('build'))
 
 // TESTING
 app.post('/api/word', (req, res) => {
@@ -97,7 +97,6 @@ app.post('/api/clue/:id', (req, res) => {
     return;
   }
 
-  console.log(session);
   if (session.clues.length === 0) {
     res.status(400).json({error : "no clue yet."}).end();
     return;
@@ -128,7 +127,6 @@ app.post('/api/init', (req, res) => {
       let WORD = '';
       let SECRET = [];
       let ATTEMPTS = [];
-      let CLUES = [];
 
       WORD = word.toUpperCase();
     
