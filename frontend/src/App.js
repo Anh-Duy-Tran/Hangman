@@ -12,7 +12,8 @@ function App() {
   const [ currentWord, setCurrentWord ] = useState("")
   const [ gameOver, setGameOver ] = useState(false);
   const [ gameState, setGameState ] = useState(0);
-  const [ gameRestarted, setResart ] = useState(0);
+  const [ clueURLs, setClueURLs ] = useState([null, null, null]);
+  const [ pressed, setPressed ] = useState([])
 
   const hook = () => {
     hangmanService
@@ -20,7 +21,8 @@ function App() {
       .then(res => {
         hangmanService.setSession(res.id)
 
-        setResart(gameRestarted + 1);
+        setPressed([])
+        setClueURLs([null, null, null])
         setCurrentWord(res.data.join(' '))
         setGameOver(false);
         setGameState(0);
@@ -32,7 +34,6 @@ function App() {
 
   const stickManOnClick = (e) => {
     hook();
-    setResart(gameRestarted + 1);
   }
 
   const onClick = (e) => {
@@ -41,9 +42,8 @@ function App() {
     }
 
     const key = e.currentTarget;
-    key.classList.add('Pressed');
-
     const guess = key.getAttribute('value')
+    setPressed(pressed.concat(guess))
 
     hangmanService
       .guess(guess)
@@ -61,26 +61,25 @@ function App() {
 
   const clueOnClick = (e) => {
     const clue = e.currentTarget
-    console.log(clue);
-
+    const index = clue.getAttribute('value')
     hangmanService
-      .getClue(clue.getAttribute('value'))
+      .getClue(index)
       .then(url => {
-        
-        clue.innerHTML = `<img src=${url} className="Img"></img>`
-
+        const newURLs = [...clueURLs]
+        newURLs[index] = url
+        setClueURLs(newURLs)
       }) 
   }
 
   return (
     <>
       <div className='display'>
-        <Clue numberOfClue = {3} onClick={clueOnClick} hook={gameRestarted}></Clue>
+        <Clue clueURLs={clueURLs} onClick={clueOnClick}></Clue>
         <Game gameState = {gameState} onClick={stickManOnClick}></Game>
         <Word word={currentWord}></Word>
       </div>
       <div className='keyboardContainer'>
-        <KeyBoard hook={gameRestarted} onClick={onClick} gameOver ={gameOver} ></KeyBoard>
+        <KeyBoard onClick={onClick} gameOver ={gameOver} pressed={pressed}></KeyBoard>
       </div>
     </>
   );
