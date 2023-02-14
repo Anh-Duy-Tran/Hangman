@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const url = 'https://hangman-with-gifs-anhduytran.fly.dev/api'
+const url = 'http://localhost:3001/api'
 let sessionID = ""
 
 

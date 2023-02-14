@@ -1,10 +1,10 @@
 const axios = require('axios');
 
-const url = 'https://random-words-api.vercel.app/word/noun';
+const url = 'https://random-word.ryanrk.com/api/en/word/random';
 
 const getWord = () => {
   const request = axios.get(url);
-  return request.then(res => res.data[0].word);
+  return request.then(res => res.data[0]);
 }
 
 const servises = { getWord };

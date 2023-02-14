@@ -1,4 +1,4 @@
-# fly.toml file generated for hangman-with-gifs-anhduytran on 2022-11-08T02:57:39+02:00
+# fly.toml file generated for hangman-with-gifs-anhduytran on 2023-02-14T10:59:33+02:00
 
 app = "hangman-with-gifs-anhduytran"
 kill_signal = "SIGINT"
@@ -12,7 +12,6 @@ processes = []
   PORT = "8080"
 
 [experimental]
-  allowed_public_ports = []
   auto_rollback = true
 
 [[services]]

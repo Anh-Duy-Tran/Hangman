@@ -123,7 +123,7 @@ app.post('/api/init', (req, res) => {
     .getWord()
     .then(word => {
       const sessionID = idGenerator();
-
+      console.log(word);
       let WORD = '';
       let SECRET = [];
       let ATTEMPTS = [];
@@ -151,6 +151,7 @@ app.post('/api/init', (req, res) => {
       });
     })
     .catch(err => {
+      console.log(err);
       res.status(500).json(err).end();
     });
 })
